@@ -804,17 +804,19 @@ async function checkNetwork() {
     // Try to reach the RPC endpoint
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 3000);
-    const res = await fetch(RPC_URL + '/health', { signal: ctrl.signal }).catch(() => null);
+    const res = await fetch(RPC_URL + '/api/status', { signal: ctrl.signal }).catch(() => null);
     clearTimeout(timeout);
 
     if (res && res.ok) {
+      const data = await res.json();
       networkOnline = true;
       dot.className = 'status-dot live';
+      const onlineCount = Array.isArray(data) ? data.filter(v => v.online).length : 0;
+      const dagRound = Array.isArray(data) && data[0] ? data[0].dag_round : '—';
       label.innerHTML = 'Testnet <span style="color:var(--dim)">|</span> Connected';
       stats.innerHTML = `
-        <span class="net-stat">Block <span class="val" id="ns-block">—</span></span>
-        <span class="net-stat">Finality <span class="val" id="ns-finality">—</span></span>
-        <span class="net-stat">Validators <span class="val">3</span></span>
+        <span class="net-stat">DAG Round <span class="val">${dagRound}</span></span>
+        <span class="net-stat">Validators <span class="val">${onlineCount}/3</span></span>
       `;
     } else {
       throw new Error('offline');
@@ -822,8 +824,8 @@ async function checkNetwork() {
   } catch (e) {
     networkOnline = false;
     dot.className = 'status-dot offline';
-    label.innerHTML = 'Testnet <span style="color:var(--dim)">|</span> <span style="color:var(--amber)">Launching Soon</span>';
-    stats.innerHTML = '<span class="net-stat" style="color:var(--amber)">Node deployment in progress</span>';
+    label.innerHTML = 'Testnet <span style="color:var(--dim)">|</span> <span style="color:var(--amber)">Reconnecting...</span>';
+    stats.innerHTML = '<span class="net-stat" style="color:var(--amber)">Unable to reach RPC endpoint</span>';
   }
 }
 
