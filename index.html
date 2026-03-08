@@ -695,10 +695,10 @@ footer {
       <div class="card-sub">Get free test Z tokens to experiment with</div>
 
       <div class="faucet-info">
-        <strong>Testnet tokens have no real value.</strong> They're for testing integrations, building apps, and exploring the network. The faucet dispenses 100 Z ($1.00 equivalent) per request.
+        <strong>Testnet tokens have no real value.</strong> They're for testing integrations, building apps, and exploring the network. The faucet dispenses 25 Z ($0.25 equivalent) per request.
         <div class="faucet-limits">
-          <span>Amount: 100 Z per request</span>
-          <span>Limit: 1 request per hour</span>
+          <span>Amount: 25 Z per request</span>
+          <span>Limit: 1 request per 5 minutes</span>
           <span>Network: Testnet only</span>
         </div>
       </div>
@@ -717,13 +717,13 @@ footer {
           <label class="form-label">Your Z Address</label>
           <input type="text" class="form-input" id="faucet-address" placeholder="zr_..." readonly>
         </div>
-        <button class="btn btn-cyan" id="faucet-btn" onclick="requestFaucet()">REQUEST 100 Z</button>
+        <button class="btn btn-cyan" id="faucet-btn" onclick="requestFaucet()">REQUEST 25 Z</button>
 
         <div class="alert alert-success" id="faucet-success" style="display:none">
-          100 Z sent to your wallet. Check your balance.
+          25 Z sent to your wallet. Check your balance.
         </div>
         <div class="alert alert-warn" id="faucet-cooldown" style="display:none">
-          Please wait before requesting again. Limit: 1 per hour.
+          Please wait before requesting again. Limit: 1 per 5 minutes.
         </div>
       </div>
     </div>
@@ -1149,7 +1149,7 @@ function requestFaucet() {
     saveWallet();
     updateUI();
 
-    btn.textContent = 'REQUEST 100 Z';
+    btn.textContent = 'REQUEST 25 Z';
     btn.disabled = false;
     document.getElementById('faucet-success').style.display = 'flex';
     setTimeout(() => document.getElementById('faucet-success').style.display = 'none', 5000);
