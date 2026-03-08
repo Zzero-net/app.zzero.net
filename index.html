@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zero App — Bridge &amp; Wallet</title>
+<meta name="description" content="Bridge USDC/USDT to Z tokens, manage your wallet, and send micropayments on the Zero Network.">
+<meta property="og:title" content="Zero App — Bridge & Wallet">
+<meta property="og:description" content="Bridge USDC/USDT to Z tokens, manage your wallet, and send micropayments on the Zero Network.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://app.zzero.net">
+<meta property="og:site_name" content="Zero Network">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Zero App — Bridge & Wallet">
+<meta name="twitter:description" content="Bridge USDC/USDT to Z tokens, manage your wallet, and send micropayments on the Zero Network.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Z</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --card: #0f0f0f;
+  --border: #1a1a1a;
+  --green: #00ff41;
+  --green-dim: #00cc33;
+  --green-glow: rgba(0, 255, 65, 0.15);
+  --cyan: #00d4ff;
+  --amber: #ffb000;
+  --red: #ff3333;
+  --text: #c0c0c0;
+  --dim: #606060;
+  --white: #e0e0e0;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.015) 2px, rgba(0,255,65,0.015) 4px);
+  pointer-events: none; z-index: 9999;
+}
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: -1;
+  background-image:
+    linear-gradient(rgba(0,255,65,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,65,0.015) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+a { color: var(--cyan); text-decoration: none; }
+a:hover { color: var(--green); }
+
+/* ── Nav ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  height: 56px;
+  display: flex; align-items: center; padding: 0 24px;
+}
+.nav-inner {
+  max-width: 960px; margin: 0 auto; width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--green); letter-spacing: 2px;
+  text-transform: uppercase; text-decoration: none;
+}
+.logo span { color: var(--dim); font-weight: 300; }
+.nav-badge {
+  background: rgba(0,212,255,0.1);
+  color: var(--cyan); font-size: 0.65rem; font-weight: 600;
+  padding: 3px 10px; border: 1px solid rgba(0,212,255,0.25);
+  border-radius: 3px; letter-spacing: 0.15em;
+  text-transform: uppercase; margin-left: 12px;
+}
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { color: var(--dim); font-size: 0.8rem; transition: color 0.2s; }
+.nav-links a:hover { color: var(--green); }
+
+/* ── Layout ── */
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+.main { padding-top: 80px; padding-bottom: 60px; }
+
+/* ── Network Status Banner ── */
+.net-status {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 4px; padding: 14px 20px; margin-bottom: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.net-status-left { display: flex; align-items: center; gap: 12px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+.status-dot.offline { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.net-label { font-size: 0.8rem; color: var(--text); }
+.net-label span { color: var(--dim); }
+.net-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+.net-stat { font-size: 0.75rem; color: var(--dim); }
+.net-stat .val { color: var(--text); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 0; margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 14px 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem; font-weight: 500;
+  color: var(--dim); background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 28px; margin-bottom: 20px;
+}
+.card-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; color: var(--white);
+  margin-bottom: 4px;
+}
+.card-sub { font-size: 0.78rem; color: var(--dim); margin-bottom: 20px; }
+
+/* ── Forms ── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 0.75rem; color: var(--dim);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.form-input, .form-select {
+  width: 100%; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 12px 16px; color: var(--white);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus {
+  outline: none; border-color: var(--green);
+}
+.form-input::placeholder { color: var(--dim); opacity: 0.5; }
+.form-select { cursor: pointer; }
+.form-select option { background: var(--bg); }
+.form-row { display: flex; gap: 12px; }
+.form-row > * { flex: 1; }
+.input-with-unit { position: relative; }
+.input-unit {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 0.8rem; color: var(--dim); pointer-events: none;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 28px; width: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem; font-weight: 600;
+  border: 1px solid var(--green); color: var(--green);
+  background: transparent; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 1px;
+  border-radius: 4px;
+}
+.btn:hover:not(:disabled) {
+  background: var(--green); color: var(--bg);
+  box-shadow: 0 0 20px var(--green-glow);
+}
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-secondary { border-color: var(--border); color: var(--text); }
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255,255,255,0.05); color: var(--white);
+  box-shadow: none;
+}
+.btn-amber { border-color: var(--amber); color: var(--amber); }
+.btn-amber:hover:not(:disabled) {
+  background: var(--amber); color: var(--bg);
+  box-shadow: 0 0 20px rgba(255,176,0,0.15);
+}
+.btn-cyan { border-color: var(--cyan); color: var(--cyan); }
+.btn-cyan:hover:not(:disabled) {
+  background: var(--cyan); color: var(--bg);
+  box-shadow: 0 0 20px rgba(0,212,255,0.15);
+}
+.btn-sm { padding: 8px 16px; font-size: 0.78rem; width: auto; }
+
+/* ── Bridge ── */
+.bridge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bridge-arrow {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: var(--dim); padding: 8px 0;
+}
+.conversion-preview {
+  background: rgba(0,255,65,0.04); border: 1px solid rgba(0,255,65,0.1);
+  border-radius: 4px; padding: 14px 18px; margin-bottom: 16px;
+}
+.conversion-row {
+  display: flex; justify-content: space-between;
+  font-size: 0.82rem; padding: 3px 0;
+}
+.conversion-label { color: var(--dim); }
+.conversion-value { color: var(--text); }
+.conversion-value.green { color: var(--green); }
+
+/* ── Progress Steps ── */
+.bridge-steps { margin-top: 20px; }
+.step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 0; position: relative;
+}
+.step:not(:last-child)::after {
+  content: ''; position: absolute;
+  left: 11px; top: 34px; bottom: -2px;
+  width: 1px; background: var(--border);
+}
+.step-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 0.65rem; color: var(--dim);
+  z-index: 1; transition: all 0.3s;
+}
+.step-dot.active { border-color: var(--amber); color: var(--amber); animation: pulse 1.5s infinite; }
+.step-dot.done { border-color: var(--green); color: var(--green); background: rgba(0,255,65,0.1); }
+.step-text { font-size: 0.82rem; color: var(--dim); padding-top: 2px; transition: color 0.3s; }
+.step-text.active { color: var(--amber); }
+.step-text.done { color: var(--green); }
+
+/* ── Wallet ── */
+.wallet-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+}
+.wallet-balance {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.2rem; color: var(--white); font-weight: 700;
+}
+.wallet-balance .unit { color: var(--green); font-size: 1.2rem; margin-left: 6px; }
+.wallet-balance-usd { font-size: 0.85rem; color: var(--dim); }
+.wallet-address-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.wallet-address {
+  font-size: 0.82rem; color: var(--cyan);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.copy-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--dim); font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; padding: 4px 10px; cursor: pointer;
+  border-radius: 3px; transition: all 0.2s; flex-shrink: 0;
+}
+.copy-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* ── Transaction History ── */
+.tx-list { margin-top: 20px; }
+.tx-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.tx-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; flex-shrink: 0;
+}
+.tx-icon.send { background: rgba(255,51,51,0.1); color: var(--red); }
+.tx-icon.recv { background: rgba(0,255,65,0.1); color: var(--green); }
+.tx-icon.bridge { background: rgba(0,212,255,0.1); color: var(--cyan); }
+.tx-details { flex: 1; min-width: 0; }
+.tx-type { color: var(--white); font-weight: 500; }
+.tx-addr { color: var(--dim); font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-amount { text-align: right; flex-shrink: 0; }
+.tx-amount.send { color: var(--red); }
+.tx-amount.recv { color: var(--green); }
+.tx-amount-usd { font-size: 0.7rem; color: var(--dim); }
+.tx-time { font-size: 0.7rem; color: var(--dim); text-align: right; flex-shrink: 0; min-width: 50px; }
+
+/* ── Empty States ── */
+.empty-state {
+  text-align: center; padding: 48px 24px; color: var(--dim);
+}
+.empty-icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.3; }
+.empty-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; color: var(--text); margin-bottom: 8px;
+}
+.empty-desc { font-size: 0.82rem; max-width: 360px; margin: 0 auto 20px; line-height: 1.7; }
+
+/* ── Wallet Setup ── */
+.setup-options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.setup-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 28px; text-align: center;
+  cursor: pointer; transition: all 0.3s;
+}
+.setup-card:hover { border-color: var(--green); }
+.setup-icon { font-size: 1.5rem; margin-bottom: 12px; opacity: 0.6; }
+.setup-card h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; color: var(--white); margin-bottom: 6px;
+}
+.setup-card p { font-size: 0.78rem; color: var(--dim); line-height: 1.6; }
+
+/* ── Faucet ── */
+.faucet-info {
+  background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.12);
+  border-radius: 4px; padding: 16px 20px; margin-bottom: 20px;
+  font-size: 0.82rem; color: var(--text); line-height: 1.7;
+}
+.faucet-info strong { color: var(--cyan); }
+.faucet-limits {
+  display: flex; gap: 24px; margin-top: 12px;
+  font-size: 0.78rem; color: var(--dim);
+}
+
+/* ── Alerts ── */
+.alert {
+  padding: 14px 18px; border-radius: 4px; margin-bottom: 16px;
+  font-size: 0.82rem; display: flex; align-items: center; gap: 10px;
+}
+.alert-info { background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15); color: var(--cyan); }
+.alert-success { background: rgba(0,255,65,0.06); border: 1px solid rgba(0,255,65,0.15); color: var(--green); }
+.alert-warn { background: rgba(255,176,0,0.06); border: 1px solid rgba(255,176,0,0.15); color: var(--amber); }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border); padding: 32px 0; text-align: center;
+}
+.footer-links {
+  display: flex; justify-content: center; gap: 28px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.footer-links a { color: var(--dim); font-size: 0.8rem; transition: color 0.2s; }
+.footer-links a:hover { color: var(--green); }
+.footer-copy { font-size: 0.7rem; color: var(--dim); opacity: 0.6; }
+
+/* ── Secret Key Display ── */
+.secret-display {
+  background: rgba(255,51,51,0.04); border: 1px solid rgba(255,51,51,0.15);
+  border-radius: 4px; padding: 16px; margin: 16px 0;
+}
+.secret-display .warn {
+  font-size: 0.75rem; color: var(--red); font-weight: 600;
+  margin-bottom: 8px; letter-spacing: 0.5px;
+}
+.secret-key {
+  font-size: 0.78rem; color: var(--amber); word-break: break-all;
+  background: var(--bg); padding: 10px 14px; border-radius: 3px;
+  border: 1px solid var(--border); user-select: all;
+}
+.secret-display .note {
+  font-size: 0.72rem; color: var(--dim); margin-top: 8px;
+}
+
+/* ── Animations ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--green);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  margin-right: 8px; vertical-align: middle;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .bridge-grid { grid-template-columns: 1fr; }
+  .setup-options { grid-template-columns: 1fr; }
+  .form-row { flex-direction: column; }
+  .wallet-balance { font-size: 1.6rem; }
+  .net-stats { display: none; }
+  .tabs { overflow-x: auto; }
+  .tab { padding: 12px 18px; font-size: 0.78rem; white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-inner">
+    <div style="display:flex;align-items:center;">
+      <a href="https://app.zzero.net" class="logo">ZERO <span>app</span></a>
+      <span class="nav-badge">Testnet</span>
+    </div>
+    <div class="nav-links">
+      <a href="https://zzero.net">Main</a>
+      <a href="https://docs.zzero.net">Docs</a>
+      <a href="https://explorer.zzero.net">Explorer</a>
+      <a href="https://mcp.zzero.net">MCP</a>
+      <a href="https://pay.zzero.net">Pay</a>
+      <a href="https://github.com/Zzero-net" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container main">
+
+  <!-- Network Status -->
+  <div class="net-status">
+    <div class="net-status-left">
+      <div class="status-dot" id="net-dot"></div>
+      <span class="net-label" id="net-label">Connecting...</span>
+    </div>
+    <div class="net-stats" id="net-stats"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('bridge')">Bridge</button>
+    <button class="tab" onclick="switchTab('wallet')">Wallet</button>
+    <button class="tab" onclick="switchTab('send')">Send</button>
+    <button class="tab" onclick="switchTab('history')">History</button>
+    <button class="tab" onclick="switchTab('faucet')">Faucet</button>
+  </div>
+
+  <!-- ═══════ BRIDGE TAB ═══════ -->
+  <div class="tab-panel active" id="panel-bridge">
+    <div class="bridge-grid">
+
+      <!-- Bridge In -->
+      <div class="card">
+        <div class="card-title">Bridge In</div>
+        <div class="card-sub">USDC/USDT &rarr; Z tokens</div>
+
+        <div class="form-group">
+          <label class="form-label">Source Chain</label>
+          <select class="form-select" id="bridge-in-chain" onchange="updateBridgeIn()">
+            <option value="base">Base (USDC)</option>
+            <option value="arbitrum">Arbitrum (USDT)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Amount</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" id="bridge-in-amount" placeholder="0.00" step="0.01" min="0.01" max="2.50" oninput="updateBridgeIn()">
+            <span class="input-unit" id="bridge-in-token">USDC</span>
+          </div>
+        </div>
+
+        <div class="conversion-preview" id="bridge-in-preview" style="display:none">
+          <div class="conversion-row">
+            <span class="conversion-label">You deposit</span>
+            <span class="conversion-value" id="bridge-in-deposit">—</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">Rate</span>
+            <span class="conversion-value">$0.01 = 1 Z</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">You receive</span>
+            <span class="conversion-value green" id="bridge-in-receive">—</span>
+          </div>
+        </div>
+
+        <button class="btn" id="bridge-in-btn" onclick="doBridgeIn()" disabled>CONNECT WALLET FIRST</button>
+      </div>
+
+      <!-- Bridge Out -->
+      <div class="card">
+        <div class="card-title">Bridge Out</div>
+        <div class="card-sub">Z tokens &rarr; USDC/USDT</div>
+
+        <div class="form-group">
+          <label class="form-label">Destination Chain</label>
+          <select class="form-select" id="bridge-out-chain" onchange="updateBridgeOut()">
+            <option value="base">Base (USDC)</option>
+            <option value="arbitrum">Arbitrum (USDT)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Amount</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" id="bridge-out-amount" placeholder="0" step="1" min="1" oninput="updateBridgeOut()">
+            <span class="input-unit">Z</span>
+          </div>
+        </div>
+
+        <div class="conversion-preview" id="bridge-out-preview" style="display:none">
+          <div class="conversion-row">
+            <span class="conversion-label">You burn</span>
+            <span class="conversion-value" id="bridge-out-burn">—</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">Fee</span>
+            <span class="conversion-value">0.01 Z ($0.0001)</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">You receive</span>
+            <span class="conversion-value green" id="bridge-out-receive">—</span>
+          </div>
+        </div>
+
+        <button class="btn btn-amber" id="bridge-out-btn" onclick="doBridgeOut()" disabled>CONNECT WALLET FIRST</button>
+      </div>
+    </div>
+
+    <!-- Bridge Progress (hidden by default) -->
+    <div class="card" id="bridge-progress" style="display:none">
+      <div class="card-title" id="bridge-progress-title">Bridging...</div>
+      <div class="bridge-steps" id="bridge-steps"></div>
+    </div>
+  </div>
+
+  <!-- ═══════ WALLET TAB ═══════ -->
+  <div class="tab-panel" id="panel-wallet">
+
+    <!-- No Wallet State -->
+    <div id="wallet-setup">
+      <div class="card">
+        <div class="card-title">Zero Wallet</div>
+        <div class="card-sub">Create or import a Z wallet to get started</div>
+
+        <div class="setup-options">
+          <div class="setup-card" onclick="createWallet()">
+            <div class="setup-icon">+</div>
+            <h3>Create New Wallet</h3>
+            <p>Generate a new Ed25519 keypair. Your keys stay in your browser — never sent to any server.</p>
+          </div>
+          <div class="setup-card" onclick="showImport()">
+            <div class="setup-icon">&darr;</div>
+            <h3>Import Existing</h3>
+            <p>Import a wallet from a private key. Paste your base64-encoded Ed25519 secret key.</p>
+          </div>
+        </div>
+
+        <!-- Import form (hidden) -->
+        <div id="import-form" style="display:none; margin-top:20px;">
+          <div class="form-group">
+            <label class="form-label">Private Key (base64)</label>
+            <input type="password" class="form-input" id="import-key" placeholder="Paste your base64 Ed25519 private key">
+          </div>
+          <button class="btn" onclick="importWallet()">IMPORT WALLET</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wallet Active State -->
+    <div id="wallet-active" style="display:none">
+      <div class="card">
+        <div class="wallet-header">
+          <div>
+            <div class="wallet-balance" id="w-balance">0<span class="unit">Z</span></div>
+            <div class="wallet-balance-usd" id="w-balance-usd">$0.00 USD</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-secondary" onclick="exportKey()">Export Key</button>
+            <button class="btn btn-sm btn-secondary" onclick="disconnectWallet()" style="border-color:var(--red);color:var(--red);">Disconnect</button>
+          </div>
+        </div>
+
+        <div class="wallet-address-box">
+          <span class="wallet-address" id="w-address">—</span>
+          <button class="copy-btn" onclick="copyAddress()">COPY</button>
+        </div>
+
+        <div class="form-row">
+          <button class="btn btn-cyan btn-sm" onclick="switchTab('bridge')">Bridge In</button>
+          <button class="btn btn-sm" onclick="switchTab('send')">Send Z</button>
+          <button class="btn btn-amber btn-sm" onclick="switchTab('faucet')">Get Test Z</button>
+        </div>
+      </div>
+
+      <!-- Key Export (hidden) -->
+      <div id="key-export" style="display:none">
+        <div class="secret-display">
+          <div class="warn">SECRET KEY — DO NOT SHARE</div>
+          <div class="secret-key" id="w-secret-key">—</div>
+          <div class="note">Save this key securely. Anyone with this key has full control of your wallet. This key is stored in your browser's localStorage and never transmitted.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEND TAB ═══════ -->
+  <div class="tab-panel" id="panel-send">
+    <div class="card">
+      <div class="card-title">Send Z</div>
+      <div class="card-sub">Transfer Z to any address. Fee: 0.01 Z ($0.0001).</div>
+
+      <div id="send-no-wallet" style="display:none">
+        <div class="empty-state">
+          <div class="empty-icon">&rarr;</div>
+          <div class="empty-title">No Wallet Connected</div>
+          <div class="empty-desc">Create or import a wallet first to send Z tokens.</div>
+          <button class="btn btn-sm" onclick="switchTab('wallet')" style="width:auto;margin:0 auto;">Go to Wallet</button>
+        </div>
+      </div>
+
+      <div id="send-form">
+        <div class="form-group">
+          <label class="form-label">Recipient Address</label>
+          <input type="text" class="form-input" id="send-to" placeholder="zr_a1b2c3d4...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount</label>
+          <div class="input-with-unit">
+            <input type="number" class="form-input" id="send-amount" placeholder="0" step="0.01" min="0.01" max="25" oninput="updateSendPreview()">
+            <span class="input-unit">Z</span>
+          </div>
+        </div>
+
+        <div class="conversion-preview" id="send-preview" style="display:none">
+          <div class="conversion-row">
+            <span class="conversion-label">Amount</span>
+            <span class="conversion-value" id="send-p-amount">—</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">Fee</span>
+            <span class="conversion-value">0.01 Z ($0.0001)</span>
+          </div>
+          <div class="conversion-row">
+            <span class="conversion-label">Total deducted</span>
+            <span class="conversion-value green" id="send-p-total">—</span>
+          </div>
+        </div>
+
+        <button class="btn" id="send-btn" onclick="doSend()">SEND</button>
+
+        <div class="alert alert-success" id="send-success" style="display:none">
+          Transaction submitted. <span id="send-tx-hash"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ HISTORY TAB ═══════ -->
+  <div class="tab-panel" id="panel-history">
+    <div class="card">
+      <div class="card-title">Transaction History</div>
+      <div class="card-sub">Recent transactions for your wallet</div>
+
+      <div id="history-no-wallet" style="display:none">
+        <div class="empty-state">
+          <div class="empty-icon">&#x29D6;</div>
+          <div class="empty-title">No Wallet Connected</div>
+          <div class="empty-desc">Create or import a wallet to view your transaction history.</div>
+          <button class="btn btn-sm" onclick="switchTab('wallet')" style="width:auto;margin:0 auto;">Go to Wallet</button>
+        </div>
+      </div>
+
+      <div id="history-list">
+        <div class="tx-list" id="tx-list">
+          <div class="empty-state" id="history-empty">
+            <div class="empty-icon">&#x2014;</div>
+            <div class="empty-title">No Transactions Yet</div>
+            <div class="empty-desc">Your transactions will appear here. Use the faucet to get test Z, or bridge in from USDC/USDT.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ FAUCET TAB ═══════ -->
+  <div class="tab-panel" id="panel-faucet">
+    <div class="card">
+      <div class="card-title">Testnet Faucet</div>
+      <div class="card-sub">Get free test Z tokens to experiment with</div>
+
+      <div class="faucet-info">
+        <strong>Testnet tokens have no real value.</strong> They're for testing integrations, building apps, and exploring the network. The faucet dispenses 100 Z ($1.00 equivalent) per request.
+        <div class="faucet-limits">
+          <span>Amount: 100 Z per request</span>
+          <span>Limit: 1 request per hour</span>
+          <span>Network: Testnet only</span>
+        </div>
+      </div>
+
+      <div id="faucet-no-wallet" style="display:none">
+        <div class="empty-state">
+          <div class="empty-icon">&#x2B50;</div>
+          <div class="empty-title">No Wallet Connected</div>
+          <div class="empty-desc">Create or import a wallet first to receive test Z.</div>
+          <button class="btn btn-sm" onclick="switchTab('wallet')" style="width:auto;margin:0 auto;">Go to Wallet</button>
+        </div>
+      </div>
+
+      <div id="faucet-form">
+        <div class="form-group">
+          <label class="form-label">Your Z Address</label>
+          <input type="text" class="form-input" id="faucet-address" placeholder="zr_..." readonly>
+        </div>
+        <button class="btn btn-cyan" id="faucet-btn" onclick="requestFaucet()">REQUEST 100 Z</button>
+
+        <div class="alert alert-success" id="faucet-success" style="display:none">
+          100 Z sent to your wallet. Check your balance.
+        </div>
+        <div class="alert alert-warn" id="faucet-cooldown" style="display:none">
+          Please wait before requesting again. Limit: 1 per hour.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="https://zzero.net">Zero Network</a>
+      <a href="https://docs.zzero.net">Docs</a>
+      <a href="https://explorer.zzero.net">Explorer</a>
+      <a href="https://mcp.zzero.net">MCP</a>
+      <a href="https://pay.zzero.net">Pay</a>
+      <a href="https://github.com/Zzero-net" target="_blank">GitHub</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 Zero Network &mdash; Machine-native value transfer</div>
+  </div>
+</footer>
+
+<script>
+// ════════════════════════════════════════
+// State
+// ════════════════════════════════════════
+const RPC_URL = 'https://rpc.zzero.net';
+let wallet = null;   // { address, publicKey, secretKey }
+let balance = 0;
+let txHistory = [];
+let networkOnline = false;
+
+// ════════════════════════════════════════
+// Init
+// ════════════════════════════════════════
+(function init() {
+  // Restore wallet from localStorage
+  const saved = localStorage.getItem('zero_wallet');
+  if (saved) {
+    try {
+      const w = JSON.parse(saved);
+      wallet = {
+        address: w.address,
+        publicKey: base64ToBytes(w.publicKey),
+        secretKey: base64ToBytes(w.secretKey)
+      };
+      balance = parseInt(localStorage.getItem('zero_balance') || '0');
+      txHistory = JSON.parse(localStorage.getItem('zero_tx_history') || '[]');
+    } catch (e) { localStorage.removeItem('zero_wallet'); }
+  }
+  updateUI();
+  checkNetwork();
+  setInterval(checkNetwork, 15000);
+})();
+
+// ════════════════════════════════════════
+// Tab Navigation
+// ════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const tabs = document.querySelectorAll('.tab');
+  const tabMap = ['bridge', 'wallet', 'send', 'history', 'faucet'];
+  const idx = tabMap.indexOf(id);
+  if (idx >= 0) tabs[idx].classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+  updateUI();
+}
+
+// ════════════════════════════════════════
+// Network Status
+// ════════════════════════════════════════
+async function checkNetwork() {
+  const dot = document.getElementById('net-dot');
+  const label = document.getElementById('net-label');
+  const stats = document.getElementById('net-stats');
+
+  try {
+    // Try to reach the RPC endpoint
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch(RPC_URL + '/health', { signal: ctrl.signal }).catch(() => null);
+    clearTimeout(timeout);
+
+    if (res && res.ok) {
+      networkOnline = true;
+      dot.className = 'status-dot live';
+      label.innerHTML = 'Testnet <span style="color:var(--dim)">|</span> Connected';
+      stats.innerHTML = `
+        <span class="net-stat">Block <span class="val" id="ns-block">—</span></span>
+        <span class="net-stat">Finality <span class="val" id="ns-finality">—</span></span>
+        <span class="net-stat">Validators <span class="val">3</span></span>
+      `;
+    } else {
+      throw new Error('offline');
+    }
+  } catch (e) {
+    networkOnline = false;
+    dot.className = 'status-dot offline';
+    label.innerHTML = 'Testnet <span style="color:var(--dim)">|</span> <span style="color:var(--amber)">Launching Soon</span>';
+    stats.innerHTML = '<span class="net-stat" style="color:var(--amber)">Node deployment in progress</span>';
+  }
+}
+
+// ════════════════════════════════════════
+// UI Updates
+// ════════════════════════════════════════
+function updateUI() {
+  const hasWallet = wallet !== null;
+
+  // Wallet tab
+  document.getElementById('wallet-setup').style.display = hasWallet ? 'none' : 'block';
+  document.getElementById('wallet-active').style.display = hasWallet ? 'block' : 'none';
+  document.getElementById('key-export').style.display = 'none';
+
+  // Send tab
+  document.getElementById('send-no-wallet').style.display = hasWallet ? 'none' : 'block';
+  document.getElementById('send-form').style.display = hasWallet ? 'block' : 'none';
+
+  // History tab
+  document.getElementById('history-no-wallet').style.display = hasWallet ? 'none' : 'block';
+  document.getElementById('history-list').style.display = hasWallet ? 'block' : 'none';
+
+  // Faucet tab
+  document.getElementById('faucet-no-wallet').style.display = hasWallet ? 'none' : 'block';
+  document.getElementById('faucet-form').style.display = hasWallet ? 'block' : 'none';
+
+  if (hasWallet) {
+    document.getElementById('w-address').textContent = wallet.address;
+    document.getElementById('w-balance').innerHTML = balance.toLocaleString() + '<span class="unit">Z</span>';
+    document.getElementById('w-balance-usd').textContent = '$' + (balance * 0.01).toFixed(2) + ' USD';
+    document.getElementById('faucet-address').value = wallet.address;
+
+    // Bridge buttons
+    document.getElementById('bridge-in-btn').textContent = 'BRIDGE IN';
+    document.getElementById('bridge-in-btn').disabled = false;
+    document.getElementById('bridge-out-btn').textContent = 'BRIDGE OUT';
+    document.getElementById('bridge-out-btn').disabled = false;
+
+    renderHistory();
+  } else {
+    document.getElementById('bridge-in-btn').textContent = 'CREATE WALLET FIRST';
+    document.getElementById('bridge-in-btn').disabled = true;
+    document.getElementById('bridge-out-btn').textContent = 'CREATE WALLET FIRST';
+    document.getElementById('bridge-out-btn').disabled = true;
+  }
+}
+
+// ════════════════════════════════════════
+// Wallet Operations
+// ════════════════════════════════════════
+function createWallet() {
+  const keyPair = nacl.sign.keyPair();
+  const pubHex = bytesToHex(keyPair.publicKey);
+  wallet = {
+    address: 'zr_' + pubHex,
+    publicKey: keyPair.publicKey,
+    secretKey: keyPair.secretKey
+  };
+  balance = 0;
+  txHistory = [];
+  saveWallet();
+  updateUI();
+  switchTab('wallet');
+}
+
+function showImport() {
+  document.getElementById('import-form').style.display = 'block';
+}
+
+function importWallet() {
+  const key = document.getElementById('import-key').value.trim();
+  if (!key) return;
+  try {
+    const secretKey = base64ToBytes(key);
+    if (secretKey.length !== 64) throw new Error('Invalid key length');
+    const keyPair = nacl.sign.keyPair.fromSecretKey(secretKey);
+    const pubHex = bytesToHex(keyPair.publicKey);
+    wallet = {
+      address: 'zr_' + pubHex,
+      publicKey: keyPair.publicKey,
+      secretKey: keyPair.secretKey
+    };
+    balance = 0;
+    txHistory = [];
+    saveWallet();
+    updateUI();
+    switchTab('wallet');
+  } catch (e) {
+    alert('Invalid private key. Must be a 64-byte base64-encoded Ed25519 secret key.');
+  }
+}
+
+function exportKey() {
+  const el = document.getElementById('key-export');
+  if (el.style.display === 'none') {
+    document.getElementById('w-secret-key').textContent = bytesToBase64(wallet.secretKey);
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function disconnectWallet() {
+  if (!confirm('Disconnect wallet? Make sure you have exported your key.')) return;
+  wallet = null;
+  balance = 0;
+  txHistory = [];
+  localStorage.removeItem('zero_wallet');
+  localStorage.removeItem('zero_balance');
+  localStorage.removeItem('zero_tx_history');
+  updateUI();
+}
+
+function copyAddress() {
+  navigator.clipboard.writeText(wallet.address);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'COPIED';
+  setTimeout(() => btn.textContent = 'COPY', 1500);
+}
+
+function saveWallet() {
+  localStorage.setItem('zero_wallet', JSON.stringify({
+    address: wallet.address,
+    publicKey: bytesToBase64(wallet.publicKey),
+    secretKey: bytesToBase64(wallet.secretKey)
+  }));
+  localStorage.setItem('zero_balance', balance.toString());
+  localStorage.setItem('zero_tx_history', JSON.stringify(txHistory));
+}
+
+// ════════════════════════════════════════
+// Bridge Operations
+// ════════════════════════════════════════
+function updateBridgeIn() {
+  const chain = document.getElementById('bridge-in-chain').value;
+  const token = chain === 'base' ? 'USDC' : 'USDT';
+  document.getElementById('bridge-in-token').textContent = token;
+
+  const amount = parseFloat(document.getElementById('bridge-in-amount').value);
+  const preview = document.getElementById('bridge-in-preview');
+  if (amount > 0) {
+    preview.style.display = 'block';
+    const z = Math.floor(amount * 100);
+    document.getElementById('bridge-in-deposit').textContent = amount.toFixed(2) + ' ' + token;
+    document.getElementById('bridge-in-receive').textContent = z.toLocaleString() + ' Z';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function updateBridgeOut() {
+  const chain = document.getElementById('bridge-out-chain').value;
+  const token = chain === 'base' ? 'USDC' : 'USDT';
+  const amount = parseInt(document.getElementById('bridge-out-amount').value);
+  const preview = document.getElementById('bridge-out-preview');
+  if (amount > 0) {
+    preview.style.display = 'block';
+    const fee = 0.01;
+    const usd = ((amount - 1) * 0.01).toFixed(2);
+    document.getElementById('bridge-out-burn').textContent = amount.toLocaleString() + ' Z';
+    document.getElementById('bridge-out-receive').textContent = usd + ' ' + token;
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function doBridgeIn() {
+  if (!wallet) { switchTab('wallet'); return; }
+  const amount = parseFloat(document.getElementById('bridge-in-amount').value);
+  if (!amount || amount <= 0) return;
+
+  const chain = document.getElementById('bridge-in-chain').value;
+  const token = chain === 'base' ? 'USDC' : 'USDT';
+  const z = Math.floor(amount * 100);
+
+  showBridgeProgress('Bridge In: ' + amount.toFixed(2) + ' ' + token + ' → ' + z + ' Z', [
+    { text: 'Connect to ' + chain.charAt(0).toUpperCase() + chain.slice(1) + ' network' },
+    { text: 'Approve ' + token + ' spend on ZeroVault' },
+    { text: 'Deposit ' + amount.toFixed(2) + ' ' + token + ' to vault' },
+    { text: 'Wait for Trinity Validator attestations (2 of 3)' },
+    { text: 'Mint ' + z + ' Z to ' + wallet.address.slice(0, 12) + '...' },
+  ], () => {
+    balance += z;
+    addTx('bridge_in', 'Bridge In via ' + chain.charAt(0).toUpperCase() + chain.slice(1), z);
+    saveWallet();
+    updateUI();
+  });
+}
+
+function doBridgeOut() {
+  if (!wallet) { switchTab('wallet'); return; }
+  const amount = parseInt(document.getElementById('bridge-out-amount').value);
+  if (!amount || amount <= 0) return;
+  if (amount > balance) { alert('Insufficient balance'); return; }
+
+  const chain = document.getElementById('bridge-out-chain').value;
+  const token = chain === 'base' ? 'USDC' : 'USDT';
+  const usd = ((amount - 1) * 0.01).toFixed(2);
+
+  showBridgeProgress('Bridge Out: ' + amount + ' Z → ' + usd + ' ' + token, [
+    { text: 'Burn ' + amount + ' Z from your account' },
+    { text: 'Submit burn proof to Trinity Validators' },
+    { text: 'Collect attestations (2 of 3)' },
+    { text: 'Release ' + usd + ' ' + token + ' from vault on ' + chain.charAt(0).toUpperCase() + chain.slice(1) },
+  ], () => {
+    balance -= amount;
+    addTx('bridge_out', 'Bridge Out to ' + chain.charAt(0).toUpperCase() + chain.slice(1), amount);
+    saveWallet();
+    updateUI();
+  });
+}
+
+function showBridgeProgress(title, steps, onComplete) {
+  const el = document.getElementById('bridge-progress');
+  const stepsEl = document.getElementById('bridge-steps');
+  document.getElementById('bridge-progress-title').textContent = title;
+  el.style.display = 'block';
+
+  stepsEl.innerHTML = steps.map((s, i) => `
+    <div class="step" id="bstep-${i}">
+      <div class="step-dot" id="bdot-${i}">${i + 1}</div>
+      <div class="step-text" id="btxt-${i}">${s.text}</div>
+    </div>
+  `).join('');
+
+  let current = 0;
+  function advance() {
+    if (current > 0) {
+      document.getElementById('bdot-' + (current - 1)).className = 'step-dot done';
+      document.getElementById('btxt-' + (current - 1)).className = 'step-text done';
+    }
+    if (current < steps.length) {
+      document.getElementById('bdot-' + current).className = 'step-dot active';
+      document.getElementById('btxt-' + current).className = 'step-text active';
+      current++;
+      setTimeout(advance, 800 + Math.random() * 1200);
+    } else {
+      setTimeout(() => {
+        onComplete();
+        setTimeout(() => { el.style.display = 'none'; }, 2000);
+      }, 500);
+    }
+  }
+  advance();
+}
+
+// ════════════════════════════════════════
+// Send
+// ════════════════════════════════════════
+function updateSendPreview() {
+  const amount = parseFloat(document.getElementById('send-amount').value);
+  const preview = document.getElementById('send-preview');
+  if (amount > 0) {
+    preview.style.display = 'block';
+    document.getElementById('send-p-amount').textContent = amount.toFixed(2) + ' Z ($' + (amount * 0.01).toFixed(4) + ')';
+    document.getElementById('send-p-total').textContent = (amount + 0.01).toFixed(2) + ' Z ($' + ((amount + 0.01) * 0.01).toFixed(4) + ')';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function doSend() {
+  if (!wallet) { switchTab('wallet'); return; }
+  const to = document.getElementById('send-to').value.trim();
+  const amount = parseFloat(document.getElementById('send-amount').value);
+
+  if (!to || !to.startsWith('zr_')) { alert('Invalid address. Must start with zr_'); return; }
+  if (!amount || amount <= 0 || amount > 25) { alert('Amount must be between 0.01 and 25 Z'); return; }
+  const totalZ = amount + 0.01;
+  if (totalZ > balance) { alert('Insufficient balance. Need ' + totalZ.toFixed(2) + ' Z (including 0.01 Z fee)'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.innerHTML = '<span class="spinner"></span>SENDING...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    balance -= totalZ;
+    balance = Math.round(balance * 100) / 100; // avoid float drift
+    addTx('send', to, amount);
+    saveWallet();
+    updateUI();
+
+    btn.textContent = 'SEND';
+    btn.disabled = false;
+    document.getElementById('send-amount').value = '';
+    document.getElementById('send-to').value = '';
+    document.getElementById('send-preview').style.display = 'none';
+
+    const hex = () => Math.floor(Math.random() * 16).toString(16);
+    const hash = 'zr_' + Array.from({length: 16}, hex).join('');
+    const success = document.getElementById('send-success');
+    document.getElementById('send-tx-hash').textContent = 'TX: ' + hash;
+    success.style.display = 'flex';
+    setTimeout(() => success.style.display = 'none', 5000);
+  }, 600 + Math.random() * 600);
+}
+
+// ════════════════════════════════════════
+// Faucet
+// ════════════════════════════════════════
+function requestFaucet() {
+  if (!wallet) { switchTab('wallet'); return; }
+
+  const lastRequest = localStorage.getItem('zero_faucet_last');
+  if (lastRequest && Date.now() - parseInt(lastRequest) < 3600000) {
+    document.getElementById('faucet-cooldown').style.display = 'flex';
+    setTimeout(() => document.getElementById('faucet-cooldown').style.display = 'none', 3000);
+    return;
+  }
+
+  const btn = document.getElementById('faucet-btn');
+  btn.innerHTML = '<span class="spinner"></span>REQUESTING...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    balance += 100;
+    addTx('faucet', 'Testnet Faucet', 100);
+    localStorage.setItem('zero_faucet_last', Date.now().toString());
+    saveWallet();
+    updateUI();
+
+    btn.textContent = 'REQUEST 100 Z';
+    btn.disabled = false;
+    document.getElementById('faucet-success').style.display = 'flex';
+    setTimeout(() => document.getElementById('faucet-success').style.display = 'none', 5000);
+  }, 1000 + Math.random() * 500);
+}
+
+// ════════════════════════════════════════
+// Transaction History
+// ════════════════════════════════════════
+function addTx(type, target, amount) {
+  txHistory.unshift({
+    type, target, amount,
+    time: Date.now(),
+    hash: 'zr_' + Array.from({length: 16}, () => Math.floor(Math.random()*16).toString(16)).join('')
+  });
+  if (txHistory.length > 50) txHistory = txHistory.slice(0, 50);
+}
+
+function renderHistory() {
+  const list = document.getElementById('tx-list');
+  const empty = document.getElementById('history-empty');
+
+  if (txHistory.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const items = txHistory.map(tx => {
+    let icon, iconClass, typeLabel, amountClass, sign;
+    switch (tx.type) {
+      case 'send':
+        icon = '&uarr;'; iconClass = 'send'; typeLabel = 'Sent'; amountClass = 'send'; sign = '-';
+        break;
+      case 'recv':
+        icon = '&darr;'; iconClass = 'recv'; typeLabel = 'Received'; amountClass = 'recv'; sign = '+';
+        break;
+      case 'bridge_in':
+        icon = '&oplus;'; iconClass = 'bridge'; typeLabel = 'Bridge In'; amountClass = 'recv'; sign = '+';
+        break;
+      case 'bridge_out':
+        icon = '&ominus;'; iconClass = 'bridge'; typeLabel = 'Bridge Out'; amountClass = 'send'; sign = '-';
+        break;
+      case 'faucet':
+        icon = '&#x2B50;'; iconClass = 'recv'; typeLabel = 'Faucet'; amountClass = 'recv'; sign = '+';
+        break;
+      default:
+        icon = '?'; iconClass = 'send'; typeLabel = tx.type; amountClass = 'send'; sign = '';
+    }
+
+    const ago = timeAgo(tx.time);
+    const truncTarget = tx.target.length > 20 ? tx.target.slice(0, 12) + '...' + tx.target.slice(-4) : tx.target;
+
+    return `
+      <div class="tx-item">
+        <div class="tx-icon ${iconClass}">${icon}</div>
+        <div class="tx-details">
+          <div class="tx-type">${typeLabel}</div>
+          <div class="tx-addr">${truncTarget}</div>
+        </div>
+        <div>
+          <div class="tx-amount ${amountClass}">${sign}${tx.amount} Z</div>
+          <div class="tx-amount-usd">$${(tx.amount * 0.01).toFixed(2)}</div>
+        </div>
+        <div class="tx-time">${ago}</div>
+      </div>
+    `;
+  }).join('');
+
+  list.innerHTML = items;
+}
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return diff + 's';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return Math.floor(diff / 86400) + 'd';
+}
+
+// ════════════════════════════════════════
+// Crypto Helpers
+// ════════════════════════════════════════
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+</script>
+</body>
+</html>
