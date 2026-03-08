@@ -1143,8 +1143,8 @@ function requestFaucet() {
   btn.disabled = true;
 
   setTimeout(() => {
-    balance += 100;
-    addTx('faucet', 'Testnet Faucet', 100);
+    balance += 25;
+    addTx('faucet', 'Testnet Faucet', 25);
     localStorage.setItem('zero_faucet_last', Date.now().toString());
     saveWallet();
     updateUI();
