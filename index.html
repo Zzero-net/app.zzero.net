@@ -519,8 +519,8 @@ footer {
             <span class="conversion-value" id="bridge-out-burn">—</span>
           </div>
           <div class="conversion-row">
-            <span class="conversion-label">Fee</span>
-            <span class="conversion-value">0.01 Z ($0.0001)</span>
+            <span class="conversion-label">Bridge fee</span>
+            <span class="conversion-value">0.5 Z ($0.005)</span>
           </div>
           <div class="conversion-row">
             <span class="conversion-label">You receive</span>
@@ -985,9 +985,10 @@ function updateBridgeOut() {
   const preview = document.getElementById('bridge-out-preview');
   if (amount > 0) {
     preview.style.display = 'block';
-    const fee = 0.01;
-    const usd = ((amount - 1) * 0.01).toFixed(2);
-    document.getElementById('bridge-out-burn').textContent = amount.toLocaleString() + ' Z';
+    const bridgeFee = 50; // 0.5 Z in units
+    const totalBurn = amount + bridgeFee;
+    const usd = (amount * 0.01).toFixed(2);
+    document.getElementById('bridge-out-burn').textContent = totalBurn.toLocaleString() + ' Z (incl. fee)';
     document.getElementById('bridge-out-receive').textContent = usd + ' ' + token;
   } else {
     preview.style.display = 'none';
@@ -1021,19 +1022,21 @@ function doBridgeOut() {
   if (!wallet) { switchTab('wallet'); return; }
   const amount = parseInt(document.getElementById('bridge-out-amount').value);
   if (!amount || amount <= 0) return;
-  if (amount > balance) { alert('Insufficient balance'); return; }
+  const bridgeFee = 50; // 0.5 Z in units
+  const totalCost = amount + bridgeFee;
+  if (totalCost > balance) { alert('Insufficient balance (need ' + totalCost + ' Z incl. 0.5 Z bridge fee)'); return; }
 
   const chain = document.getElementById('bridge-out-chain').value;
   const token = chain === 'base' ? 'USDC' : 'USDT';
-  const usd = ((amount - 1) * 0.01).toFixed(2);
+  const usd = (amount * 0.01).toFixed(2);
 
   showBridgeProgress('Bridge Out: ' + amount + ' Z → ' + usd + ' ' + token, [
-    { text: 'Burn ' + amount + ' Z from your account' },
+    { text: 'Burn ' + totalCost + ' Z (' + amount + ' + 0.5 Z fee)' },
     { text: 'Submit burn proof to Trinity Validators' },
-    { text: 'Collect attestations (2 of 3)' },
+    { text: 'Collect ECDSA signatures (2 of 3)' },
     { text: 'Release ' + usd + ' ' + token + ' from vault on ' + chain.charAt(0).toUpperCase() + chain.slice(1) },
   ], () => {
-    balance -= amount;
+    balance -= totalCost;
     addTx('bridge_out', 'Bridge Out to ' + chain.charAt(0).toUpperCase() + chain.slice(1), amount);
     saveWallet();
     updateUI();
